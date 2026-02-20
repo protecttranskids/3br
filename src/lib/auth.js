@@ -44,6 +44,20 @@ export function AuthProvider({ children }) {
         data: { display_name: displayName, handle },
       },
     });
+    if (error) return { data, error };
+    
+    // Create profile directly (no trigger)
+    if (data?.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          display_name: displayName,
+          handle: handle,
+        }, { onConflict: 'id' });
+      if (profileError) console.error('Profile creation error:', profileError);
+    }
+    
     return { data, error };
   }
 
