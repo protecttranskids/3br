@@ -6,6 +6,7 @@ import AuthScreen from '@/components/AuthScreen';
 import BookSearch from '@/components/BookSearch';
 import RecSetCard from '@/components/RecSetCard';
 import CreateRecFlow from '@/components/CreateRecFlow';
+import Onboarding from '@/components/Onboarding';
 
 // Tab icons as simple SVGs
 function IconHome({ active }) {
@@ -467,8 +468,19 @@ export default function Home() {
   const [showCreateRec, setShowCreateRec] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
+  const [onboarded, setOnboarded] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
-  if (loading) {
+  // Check if user has any shelved books (if so, skip onboarding)
+  useEffect(() => {
+    if (!user) { setCheckingOnboarding(false); return; }
+    getUserShelves(user.id).then(data => {
+      if (data && data.length > 0) setOnboarded(true);
+      setCheckingOnboarding(false);
+    });
+  }, [user]);
+
+  if (loading || checkingOnboarding) {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="spinner" />
@@ -477,6 +489,8 @@ export default function Home() {
   }
 
   if (!user) return <AuthScreen />;
+
+  if (!onboarded) return <Onboarding onComplete={() => setOnboarded(true)} />;
 
   const handleBookTap = (book) => {
     if (book) setSelectedBook(book);
