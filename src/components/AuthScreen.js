@@ -21,8 +21,15 @@ export default function AuthScreen() {
       if (!displayName.trim()) { setError('Display name is required'); setLoading(false); return; }
       if (!handle.trim()) { setError('Handle is required'); setLoading(false); return; }
       const cleanHandle = handle.toLowerCase().replace(/[^a-z0-9_]/g, '');
-      const { error: err } = await signUp(email, password, displayName.trim(), cleanHandle);
+      const { data, error: err } = await signUp(email, password, displayName.trim(), cleanHandle);
       if (err) { setError(err.message); setLoading(false); return; }
+      // If email confirmation is off, user is auto-signed in
+      if (data?.session) {
+        // Already signed in, auth listener will handle the rest
+        setLoading(false);
+        return;
+      }
+      // If email confirmation is on, show the check email screen
       setSignupSuccess(true);
     } else {
       const { error: err } = await signIn(email, password);

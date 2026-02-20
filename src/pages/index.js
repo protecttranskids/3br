@@ -28,7 +28,8 @@ function FeedTab({ onBookTap, onUserTap }) {
 
   const loadFeed = async () => {
     setLoading(true);
-    const data = user ? await getFeed(user.id) : await getExploreFeed();
+    // Beta: show ALL rec sets from all users
+    const data = await getExploreFeed(50);
     setFeed(data);
     setLoading(false);
   };
@@ -39,8 +40,30 @@ function FeedTab({ onBookTap, onUserTap }) {
     <div>
       <div className="header">
         <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>3BR</div>
+        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', padding: '3px 8px', borderRadius: 8 }}>BETA</span>
       </div>
       <div className="scroll-area" style={{ paddingTop: 12 }}>
+        {/* Welcome card - always show during beta */}
+        <div style={{ margin: '0 16px 16px', padding: 20, borderRadius: 16, background: 'linear-gradient(135deg, #6C63FF, #8B83FF)', color: '#fff' }}>
+          <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: 6 }}>Welcome to 3BR</div>
+          <div style={{ fontSize: 13, opacity: 0.9, lineHeight: 1.5, marginBottom: 12 }}>
+            Every book you finish unlocks exactly 3 recommendations. Not 5, not 10 — just 3. The constraint forces you to think about what truly connects.
+          </div>
+          <div style={{ fontSize: 11, opacity: 0.7, lineHeight: 1.5 }}>
+            <strong>How it works:</strong> Mark a book as Read → Create a Rec Set with your 3 picks → Discover what others recommend.
+          </div>
+        </div>
+
+        {/* Bookstore coming soon card */}
+        <div style={{ margin: '0 16px 16px', padding: 16, borderRadius: 16, background: 'var(--card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #3D3B8E, #5A58B8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📚</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>Indie Bookstore Integration</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, marginTop: 2 }}>Coming soon — buy books through 3BR and support your local indie bookstore via Bookshop.org.</div>
+          </div>
+          <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--gold)', background: 'rgba(251,191,36,0.15)', padding: '3px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>SOON</span>
+        </div>
+
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
             <div className="spinner" />
@@ -48,11 +71,11 @@ function FeedTab({ onBookTap, onUserTap }) {
         )}
 
         {!loading && feed.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 32px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>Your feed is empty</h3>
+          <div style={{ textAlign: 'center', padding: '24px 32px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No rec sets yet</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.5 }}>
-              Create your first rec set or follow readers to see their recommendations here.
+              Be the first! Tap the + button to mark a book as read and share your 3 recommendations.
             </p>
           </div>
         )}
@@ -298,12 +321,36 @@ function ProfileTab() {
             </div>
           ))
         )}
+
+        {/* Bookstore coming soon */}
+        <div className="card" style={{ padding: 16, marginBottom: 16, marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg, #3D3B8E, #5A58B8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📚</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>My Home Bookstore</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4, marginTop: 2 }}>Coming soon — link your favorite indie bookstore. When you buy through 3BR, a portion of every sale supports your store via Bookshop.org.</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 12, padding: '10px 12px', background: 'var(--bg)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>🏪</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>We believe in supporting indie bookstores. This feature will let you pick one (or more!) local stores to support with every purchase.</div>
+            </div>
+            <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--gold)', background: 'rgba(251,191,36,0.15)', padding: '3px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>SOON</span>
+          </div>
+        </div>
+
+        {/* Beta feedback */}
+        <div className="card" style={{ padding: 16, marginBottom: 16, textAlign: 'center' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>💬</div>
+          <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: 4 }}>Beta Feedback</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>We'd love to hear your thoughts. What's working? What's missing? Would you use this?</div>
+          <a href="https://forms.gle/REPLACE_WITH_YOUR_FORM_LINK" target="_blank" rel="noopener noreferrer" style={{ display: 'block', padding: '12px', borderRadius: 12, background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Share Feedback</a>
+        </div>
       </div>
     </div>
   );
 }
-
-// ---- BOOK DETAIL ----
 function BookDetail({ book, onClose }) {
   const { user } = useAuth();
   const [shelf, setShelf] = useState(null);
