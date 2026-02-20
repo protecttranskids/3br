@@ -1,0 +1,490 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth';
+import { getFeed, getExploreFeed, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
+import { searchBooks, getCoverUrl } from '@/lib/openlibrary';
+import AuthScreen from '@/components/AuthScreen';
+import BookSearch from '@/components/BookSearch';
+import RecSetCard from '@/components/RecSetCard';
+import CreateRecFlow from '@/components/CreateRecFlow';
+
+// Tab icons as simple SVGs
+function IconHome({ active }) {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'var(--accent)' : 'none'} stroke={active ? 'var(--accent)' : 'var(--text-light)'} strokeWidth="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10"/></svg>;
+}
+function IconSearch({ active }) {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--accent)' : 'var(--text-light)'} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>;
+}
+function IconBook({ active }) {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'var(--accent)' : 'none'} stroke={active ? 'var(--accent)' : 'var(--text-light)'} strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
+}
+function IconUser({ active }) {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'var(--accent)' : 'none'} stroke={active ? 'var(--accent)' : 'var(--text-light)'} strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+}
+
+function FeedTab({ onBookTap, onUserTap }) {
+  const { user } = useAuth();
+  const [feed, setFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadFeed = async () => {
+    setLoading(true);
+    const data = user ? await getFeed(user.id) : await getExploreFeed();
+    setFeed(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadFeed(); }, [user]);
+
+  return (
+    <div>
+      <div className="header">
+        <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>3BR</div>
+      </div>
+      <div className="scroll-area" style={{ paddingTop: 12 }}>
+        {loading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+            <div className="spinner" />
+          </div>
+        )}
+
+        {!loading && feed.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '40px 32px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>Your feed is empty</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.5 }}>
+              Create your first rec set or follow readers to see their recommendations here.
+            </p>
+          </div>
+        )}
+
+        {feed.map(recSet => (
+          <RecSetCard key={recSet.id} recSet={recSet} onBookTap={onBookTap} onUserTap={onUserTap} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ExploreTab({ onBookTap }) {
+  const { user } = useAuth();
+  const [feed, setFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getExploreFeed(50).then(data => { setFeed(data); setLoading(false); });
+  }, []);
+
+  return (
+    <div>
+      <div className="header">
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Explore</div>
+      </div>
+      <div className="scroll-area" style={{ padding: '12px 0' }}>
+        <div style={{ padding: '0 16px 16px' }}>
+          <BookSearch
+            onSelect={async (book) => {
+              if (!user) return;
+              const dbBook = await findOrCreateBook(book);
+              onBookTap && onBookTap(dbBook);
+            }}
+            placeholder="Search any book..."
+          />
+        </div>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
+        ) : (
+          feed.map(recSet => (
+            <RecSetCard key={recSet.id} recSet={recSet} onBookTap={onBookTap} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LibraryTab({ onBookTap }) {
+  const { user } = useAuth();
+  const [shelves, setShelves] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  const loadShelves = async () => {
+    if (!user) return;
+    setLoading(true);
+    const data = await getUserShelves(user.id);
+    setShelves(data);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadShelves(); }, [user]);
+
+  const filtered = filter === 'all' ? shelves : shelves.filter(s => s.shelf === filter);
+  const counts = {
+    all: shelves.length,
+    reading: shelves.filter(s => s.shelf === 'reading').length,
+    tbr: shelves.filter(s => s.shelf === 'tbr').length,
+    read: shelves.filter(s => s.shelf === 'read').length,
+  };
+
+  return (
+    <div>
+      <div className="header">
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Library</div>
+      </div>
+      <div className="scroll-area">
+        {/* Filter tabs */}
+        <div style={{ display: 'flex', padding: '12px 16px', gap: 6, overflowX: 'auto' }}>
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'reading', label: '📖 Reading' },
+            { key: 'tbr', label: '📋 TBR' },
+            { key: 'read', label: '✓ Read' },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 10,
+                border: filter === f.key ? 'none' : '1px solid var(--border)',
+                background: filter === f.key ? 'var(--accent)' : 'var(--card)',
+                color: filter === f.key ? '#fff' : 'var(--text)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {f.label} ({counts[f.key]})
+            </button>
+          ))}
+        </div>
+
+        {/* Add book */}
+        <div style={{ padding: '0 16px 12px' }}>
+          <BookSearch
+            onSelect={async (book) => {
+              if (!user) return;
+              const dbBook = await findOrCreateBook(book);
+              await addToShelf(user.id, dbBook.id, 'tbr');
+              loadShelves();
+            }}
+            placeholder="Add a book to your library..."
+          />
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><div className="spinner" /></div>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 32px' }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📚</div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No books here yet. Search above to add some!</p>
+          </div>
+        ) : (
+          <div style={{ padding: '0 16px' }}>
+            {filtered.map(item => {
+              const book = item.books;
+              const coverUrl = book?.isbn
+                ? `https://covers.openlibrary.org/b/isbn/${book.isbn}-S.jpg`
+                : null;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => onBookTap && onBookTap(book)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px', background: 'var(--card)', borderRadius: 12, marginBottom: 8, cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+                >
+                  {coverUrl ? (
+                    <img src={coverUrl} alt="" style={{ width: 44, height: 64, borderRadius: 6, objectFit: 'cover', background: 'var(--border)' }} />
+                  ) : (
+                    <div style={{ width: 44, height: 64, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📖</div>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-display)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{book?.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{book?.author}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 9,
+                    padding: '4px 8px',
+                    borderRadius: 6,
+                    fontWeight: 600,
+                    background: item.shelf === 'read' ? 'rgba(52,211,153,0.15)' : item.shelf === 'reading' ? 'rgba(251,191,36,0.15)' : 'var(--accent-light)',
+                    color: item.shelf === 'read' ? 'var(--green)' : item.shelf === 'reading' ? 'var(--gold)' : 'var(--accent)',
+                  }}>
+                    {item.shelf === 'read' ? 'Read' : item.shelf === 'reading' ? 'Reading' : 'TBR'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProfileTab() {
+  const { user, profile, signOut } = useAuth();
+  const [recSets, setRecSets] = useState([]);
+  const [shelves, setShelves] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getUserRecSets(user.id), getUserShelves(user.id)]).then(([rs, sh]) => {
+      setRecSets(rs);
+      setShelves(sh);
+      setLoading(false);
+    });
+  }, [user]);
+
+  const readCount = shelves.filter(s => s.shelf === 'read').length;
+  const recCount = recSets.length;
+  const recsUnlocked = readCount * 3;
+
+  return (
+    <div>
+      <div className="header">
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Profile</div>
+        <button onClick={signOut} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Sign Out</button>
+      </div>
+      <div className="scroll-area" style={{ padding: '20px 16px' }}>
+        {/* Profile header */}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 36, background: 'var(--accent)', color: '#fff', fontSize: 28, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+            {profile?.display_name?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{profile?.display_name}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>@{profile?.handle}</div>
+        </div>
+
+        {/* Stats */}
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', textAlign: 'center' }}>
+            {[
+              { label: 'Books Read', value: readCount },
+              { label: 'Rec Sets', value: recCount },
+              { label: 'Recs Unlocked', value: recsUnlocked },
+            ].map(s => (
+              <div key={s.label} style={{ flex: 1 }}>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent rec sets */}
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>Your Rec Sets</div>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}><div className="spinner" /></div>
+        ) : recSets.length === 0 ? (
+          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>⭐</div>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>You haven't created any rec sets yet. Finish a book to unlock your 3 recs!</p>
+          </div>
+        ) : (
+          recSets.map(rs => (
+            <div key={rs.id} className="card" style={{ padding: 14, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 44, height: 64, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                {rs.source_book?.cover_emoji || '📖'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-display)' }}>{rs.source_book?.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  → {rs.recs?.map(r => r.books?.title).filter(Boolean).join(', ')}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- BOOK DETAIL ----
+function BookDetail({ book, onClose }) {
+  const { user } = useAuth();
+  const [shelf, setShelf] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || !book) return;
+    getUserShelves(user.id).then(data => {
+      const entry = data.find(s => s.book_id === book.id);
+      if (entry) setShelf(entry.shelf);
+    });
+  }, [user, book]);
+
+  const handleShelf = async (newShelf) => {
+    if (!user) return;
+    setLoading(true);
+    if (newShelf === shelf) {
+      await removeFromShelf(user.id, book.id);
+      setShelf(null);
+    } else {
+      await addToShelf(user.id, book.id, newShelf);
+      setShelf(newShelf);
+    }
+    setLoading(false);
+  };
+
+  const coverUrl = book?.isbn
+    ? `https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg`
+    : null;
+
+  if (!book) return null;
+
+  return (
+    <div className="overlay" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="header">
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>←</button>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>Book Details</div>
+        <div style={{ width: 22 }} />
+      </div>
+      <div className="scroll-area" style={{ padding: '20px', flex: 1 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          {coverUrl ? (
+            <img src={coverUrl} alt="" style={{ width: 120, height: 174, borderRadius: 8, objectFit: 'cover', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }} />
+          ) : (
+            <div style={{ width: 120, height: 174, borderRadius: 8, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, margin: '0 auto' }}>📖</div>
+          )}
+        </div>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-display)', lineHeight: 1.2, marginBottom: 4 }}>{book.title}</div>
+          <div style={{ fontSize: 14, color: 'var(--accent)', fontWeight: 600 }}>{book.author}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            {book.pages && `${book.pages} pages`}
+            {book.pub_date && ` · ${book.pub_date}`}
+            {book.publisher && ` · ${book.publisher}`}
+          </div>
+        </div>
+
+        {/* Shelf buttons */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {[
+            { key: 'tbr', label: '📋 TBR', color: 'var(--accent)' },
+            { key: 'reading', label: '📖 Reading', color: 'var(--gold)' },
+            { key: 'read', label: '✓ Read', color: 'var(--green)' },
+          ].map(s => (
+            <button
+              key={s.key}
+              onClick={() => handleShelf(s.key)}
+              disabled={loading}
+              style={{
+                flex: 1,
+                padding: '12px 8px',
+                borderRadius: 12,
+                border: shelf === s.key ? 'none' : '1px solid var(--border)',
+                background: shelf === s.key ? s.color : 'var(--card)',
+                color: shelf === s.key ? '#fff' : 'var(--text)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-body)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Summary */}
+        {book.summary && (
+          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>About</div>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-muted)' }}>{book.summary}</p>
+          </div>
+        )}
+
+        {/* Subjects */}
+        {book.subjects?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {book.subjects.slice(0, 8).map(s => (
+              <span key={s} className="tag">{s}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- MAIN PAGE ----
+export default function Home() {
+  const { user, loading } = useAuth();
+  const [tab, setTab] = useState('home');
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showCreateRec, setShowCreateRec] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+  const [feedKey, setFeedKey] = useState(0);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  if (!user) return <AuthScreen />;
+
+  const handleBookTap = (book) => {
+    if (book) setSelectedBook(book);
+  };
+
+  return (
+    <>
+      {/* Tab content */}
+      {tab === 'home' && <FeedTab key={feedKey} onBookTap={handleBookTap} />}
+      {tab === 'search' && <ExploreTab onBookTap={handleBookTap} />}
+      {tab === 'library' && <LibraryTab onBookTap={handleBookTap} />}
+      {tab === 'profile' && <ProfileTab />}
+
+      {/* FAB */}
+      {fabOpen && <div onClick={() => setFabOpen(false)} style={{ position: 'fixed', inset: 0, maxWidth: 430, margin: '0 auto', background: 'rgba(0,0,0,0.3)', zIndex: 14 }} />}
+      {fabOpen && (
+        <div style={{ position: 'fixed', bottom: 140, right: 'calc(50% - 195px)', zIndex: 16, display: 'flex', flexDirection: 'column', gap: 8, animation: 'fadeIn 0.15s ease' }}>
+          {[
+            { label: 'Create a Rec Set', icon: '⭐', action: () => { setFabOpen(false); setShowCreateRec(true); } },
+          ].map(item => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderRadius: 12, border: 'none', background: 'var(--card)', boxShadow: '0 4px 16px rgba(0,0,0,0.15)', cursor: 'pointer', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}
+            >
+              <span style={{ fontSize: 16 }}>{item.icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button className="fab" onClick={() => setFabOpen(!fabOpen)}>+</button>
+
+      {/* Tab bar */}
+      <div className="tab-bar">
+        {[
+          { key: 'home', label: 'Feed', Icon: IconHome },
+          { key: 'search', label: 'Explore', Icon: IconSearch },
+          { key: 'library', label: 'Library', Icon: IconBook },
+          { key: 'profile', label: 'Profile', Icon: IconUser },
+        ].map(({ key, label, Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`tab-item ${tab === key ? 'active' : ''}`}
+          >
+            <Icon active={tab === key} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Overlays */}
+      {selectedBook && <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} />}
+      {showCreateRec && <CreateRecFlow onClose={() => setShowCreateRec(false)} onComplete={() => setFeedKey(k => k + 1)} />}
+    </>
+  );
+}
