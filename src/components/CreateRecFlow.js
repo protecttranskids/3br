@@ -56,6 +56,8 @@ export default function CreateRecFlow({ onClose, onComplete }) {
       for (const rec of selectedRecs) {
         const dbBook = await findOrCreateBook(rec.olBook);
         recData.push({ bookId: dbBook.id, tags: rec.tags });
+        // Also add rec'd book to recommender's library as Read
+        await addToShelf(user.id, dbBook.id, 'read');
       }
 
       // Create the rec set
