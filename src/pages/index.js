@@ -423,7 +423,7 @@ function ProfileTab() {
           <div style={{ fontSize: 24, marginBottom: 8 }}>💬</div>
           <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-display)', marginBottom: 4 }}>Beta Feedback</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 12 }}>We'd love to hear your thoughts. What's working? What's missing? Would you use this?</div>
-          <a href="https://forms.gle/REPLACE_WITH_YOUR_FORM_LINK" target="_blank" rel="noopener noreferrer" style={{ display: 'block', padding: '12px', borderRadius: 12, background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Share Feedback</a>
+          <a href="https://forms.gle/https://docs.google.com/forms/d/e/1FAIpQLSeOB2Ja3-lXhHQojmSldI1O0pBAwLPiYMKBCXTI4QV-eSMwxA/viewform?usp=dialog" target="_blank" rel="noopener noreferrer" style={{ display: 'block', padding: '12px', borderRadius: 12, background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>Share Feedback</a>
         </div>
       </div>
     </div>
