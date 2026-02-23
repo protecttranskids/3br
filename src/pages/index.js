@@ -432,25 +432,32 @@ function ProfileTab() {
 function BookDetail({ book, onClose }) {
   const { user } = useAuth();
   const [shelf, setShelf] = useState(null);
+  const [pendingShelf, setPendingShelf] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!user || !book) return;
     getUserShelves(user.id).then(data => {
       const entry = data.find(s => s.book_id === book.id);
-      if (entry) setShelf(entry.shelf);
+      if (entry) { setShelf(entry.shelf); setPendingShelf(entry.shelf); }
     });
   }, [user, book]);
 
-  const handleShelf = async (newShelf) => {
-    if (!user) return;
+  const handleSave = async () => {
+    if (!user || !pendingShelf) return;
     setLoading(true);
-    if (newShelf === shelf) {
+    if (pendingShelf === shelf) {
+      // Already on this shelf, remove it
       await removeFromShelf(user.id, book.id);
       setShelf(null);
+      setPendingShelf(null);
+      setSaved(false);
     } else {
-      await addToShelf(user.id, book.id, newShelf);
-      setShelf(newShelf);
+      await addToShelf(user.id, book.id, pendingShelf);
+      setShelf(pendingShelf);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     }
     setLoading(false);
   };
@@ -487,7 +494,7 @@ function BookDetail({ book, onClose }) {
         </div>
 
         {/* Shelf buttons */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {[
             { key: 'tbr', label: '📋 TBR', color: 'var(--accent)' },
             { key: 'reading', label: '📖 Reading', color: 'var(--gold)' },
@@ -495,15 +502,15 @@ function BookDetail({ book, onClose }) {
           ].map(s => (
             <button
               key={s.key}
-              onClick={() => handleShelf(s.key)}
+              onClick={() => setPendingShelf(s.key)}
               disabled={loading}
               style={{
                 flex: 1,
                 padding: '12px 8px',
                 borderRadius: 12,
-                border: shelf === s.key ? 'none' : '1px solid var(--border)',
-                background: shelf === s.key ? s.color : 'var(--card)',
-                color: shelf === s.key ? '#fff' : 'var(--text)',
+                border: pendingShelf === s.key ? 'none' : '1px solid var(--border)',
+                background: pendingShelf === s.key ? s.color : 'var(--card)',
+                color: pendingShelf === s.key ? '#fff' : 'var(--text)',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -515,6 +522,32 @@ function BookDetail({ book, onClose }) {
             </button>
           ))}
         </div>
+
+        {/* Add to library button */}
+        {pendingShelf && pendingShelf !== shelf && (
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="btn-primary"
+            style={{ marginBottom: 20 }}
+          >
+            {loading ? 'Saving...' : 'Add to My Library'}
+          </button>
+        )}
+        {shelf && pendingShelf === shelf && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 20, padding: 12 }}>
+            <span style={{ color: 'var(--green)', fontSize: 14 }}>✓</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
+              {saved ? 'Saved!' : `In your library as ${shelf === 'tbr' ? 'TBR' : shelf === 'reading' ? 'Reading' : 'Read'}`}
+            </span>
+            <button
+              onClick={handleSave}
+              style={{ background: 'none', border: 'none', color: 'var(--text-light)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
 
         {/* Summary */}
         {book.summary && (
