@@ -440,7 +440,7 @@ function BookDetail({ book, onClose, onGoToLibrary }) {
     if (!user || !book) return;
     getUserShelves(user.id).then(data => {
       const entry = data.find(s => s.book_id === book.id);
-      if (entry) { setShelf(entry.shelf); setPendingShelf(entry.shelf); }
+      if (entry) { setShelf(entry.shelf); setPendingShelf(entry.shelf); setSaved(true); }
     });
   }, [user, book]);
 
@@ -525,8 +525,8 @@ function BookDetail({ book, onClose, onGoToLibrary }) {
           ))}
         </div>
 
-        {/* Add to library button */}
-        {pendingShelf && pendingShelf !== shelf && (
+        {/* Add to library button / confirmation */}
+        {!saved && pendingShelf && (
           <button
             onClick={handleSave}
             disabled={loading}
@@ -536,7 +536,7 @@ function BookDetail({ book, onClose, onGoToLibrary }) {
             {loading ? 'Saving...' : 'Add to My Library'}
           </button>
         )}
-        {shelf && pendingShelf === shelf && (
+        {saved && (
           <div style={{ marginBottom: 20, animation: 'fadeIn 0.3s ease' }}>
             <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 24, marginBottom: 6 }}>✓</div>
@@ -552,12 +552,6 @@ function BookDetail({ book, onClose, onGoToLibrary }) {
                   Back to Feed
                 </button>
               </div>
-              <button
-                onClick={handleSave}
-                style={{ background: 'none', border: 'none', color: 'var(--text-light)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}
-              >
-                Remove from library
-              </button>
             </div>
           </div>
         )}
