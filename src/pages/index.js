@@ -429,7 +429,7 @@ function ProfileTab() {
     </div>
   );
 }
-function BookDetail({ book, onClose }) {
+function BookDetail({ book, onClose, onGoToLibrary }) {
   const { user } = useAuth();
   const [shelf, setShelf] = useState(null);
   const [pendingShelf, setPendingShelf] = useState(null);
@@ -447,17 +447,19 @@ function BookDetail({ book, onClose }) {
   const handleSave = async () => {
     if (!user || !pendingShelf) return;
     setLoading(true);
-    if (pendingShelf === shelf) {
-      // Already on this shelf, remove it
-      await removeFromShelf(user.id, book.id);
-      setShelf(null);
-      setPendingShelf(null);
-      setSaved(false);
-    } else {
-      await addToShelf(user.id, book.id, pendingShelf);
-      setShelf(pendingShelf);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+    try {
+      if (pendingShelf === shelf) {
+        await removeFromShelf(user.id, book.id);
+        setShelf(null);
+        setPendingShelf(null);
+        setSaved(false);
+      } else {
+        await addToShelf(user.id, book.id, pendingShelf);
+        setShelf(pendingShelf);
+        setSaved(true);
+      }
+    } catch (e) {
+      console.error('Shelf error:', e);
     }
     setLoading(false);
   };
@@ -542,17 +544,20 @@ function BookDetail({ book, onClose }) {
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 {book.title} is now on your {shelf === 'tbr' ? 'TBR' : shelf === 'reading' ? 'Reading' : 'Read'} shelf.
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <button onClick={onGoToLibrary} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                  Go to My Library
+                </button>
+                <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                   Back to Feed
                 </button>
-                <button
-                  onClick={handleSave}
-                  style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
-                >
-                  Remove
-                </button>
               </div>
+              <button
+                onClick={handleSave}
+                style={{ background: 'none', border: 'none', color: 'var(--text-light)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}
+              >
+                Remove from library
+              </button>
             </div>
           </div>
         )}
@@ -662,7 +667,7 @@ export default function Home() {
       </div>
 
       {/* Overlays */}
-      {selectedBook && <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} />}
+      {selectedBook && <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} onGoToLibrary={() => { setSelectedBook(null); setTab('library'); }} />}
       {showCreateRec && <CreateRecFlow onClose={() => setShowCreateRec(false)} onComplete={() => setFeedKey(k => k + 1)} />}
     </>
   );
