@@ -300,3 +300,25 @@ export async function searchUsers(query) {
     .limit(10);
   return data || [];
 }
+
+// ---- ACTIVITIES ----
+
+export async function createActivity(userId, type, bookId, shelf) {
+  const { error } = await supabase
+    .from('activities')
+    .insert({ user_id: userId, type, book_id: bookId, shelf });
+  if (error) console.error('Activity error:', error);
+}
+
+export async function getActivities(limit = 30) {
+  const { data } = await supabase
+    .from('activities')
+    .select(`
+      *,
+      profiles:user_id(*),
+      books:book_id(*)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return data || [];
+}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { getFeed, getExploreFeed, getActivities, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
+import { getFeed, getExploreFeed, getActivities, createActivity, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
 import { searchBooks, getCoverUrl } from '@/lib/openlibrary';
 import AuthScreen from '@/components/AuthScreen';
 import BookSearch from '@/components/BookSearch';
@@ -455,6 +455,7 @@ function BookDetail({ book, onClose, onGoToLibrary }) {
         setSaved(false);
       } else {
         await addToShelf(user.id, book.id, pendingShelf);
+        await createActivity(user.id, 'shelved', book.id, pendingShelf);
         setShelf(pendingShelf);
         setSaved(true);
       }
