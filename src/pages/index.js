@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { getFeed, getExploreFeed, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
+import { getFeed, getExploreFeed, getActivities, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
 import { searchBooks, getCoverUrl } from '@/lib/openlibrary';
 import AuthScreen from '@/components/AuthScreen';
 import BookSearch from '@/components/BookSearch';
@@ -25,17 +25,51 @@ function IconUser({ active }) {
 function FeedTab({ onBookTap, onUserTap }) {
   const { user } = useAuth();
   const [feed, setFeed] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadFeed = async () => {
     setLoading(true);
-    // Beta: show ALL rec sets from all users
-    const data = await getExploreFeed(50);
-    setFeed(data);
+    const [recSets, acts] = await Promise.all([
+      getExploreFeed(50),
+      getActivities(30),
+    ]);
+    setFeed(recSets);
+    setActivities(acts);
     setLoading(false);
   };
 
   useEffect(() => { loadFeed(); }, [user]);
+
+  // Merge and sort rec sets and activities by created_at
+  const merged = [
+    ...feed.map(r => ({ ...r, _type: 'rec_set', _time: new Date(r.created_at).getTime() })),
+    ...activities.map(a => ({ ...a, _type: 'activity', _time: new Date(a.created_at).getTime() })),
+  ].sort((a, b) => b._time - a._time);
+
+  const timeAgo = (date) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const shelfLabel = (shelf) => {
+    if (shelf === 'read') return 'finished reading';
+    if (shelf === 'reading') return 'started reading';
+    if (shelf === 'tbr') return 'wants to read';
+    return 'shelved';
+  };
+
+  const shelfEmoji = (shelf) => {
+    if (shelf === 'read') return '✓';
+    if (shelf === 'reading') return '📖';
+    if (shelf === 'tbr') return '📋';
+    return '📚';
+  };
 
   return (
     <div>
@@ -71,19 +105,62 @@ function FeedTab({ onBookTap, onUserTap }) {
           </div>
         )}
 
-        {!loading && feed.length === 0 && (
+        {!loading && merged.length === 0 && (
           <div style={{ textAlign: 'center', padding: '24px 32px' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No rec sets yet</h3>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No activity yet</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, lineHeight: 1.5 }}>
               Be the first! Tap the + button to mark a book as read and share your 3 recommendations.
             </p>
           </div>
         )}
 
-        {feed.map(recSet => (
-          <RecSetCard key={recSet.id} recSet={recSet} onBookTap={onBookTap} onUserTap={onUserTap} />
-        ))}
+        {merged.map(item => {
+          if (item._type === 'rec_set') {
+            return <RecSetCard key={`rs-${item.id}`} recSet={item} onBookTap={onBookTap} onUserTap={onUserTap} />;
+          }
+
+          // Activity card
+          const profile = item.profiles;
+          const book = item.books;
+          const coverUrl = book?.isbn
+            ? `https://covers.openlibrary.org/b/isbn/${book.isbn}-S.jpg`
+            : null;
+
+          return (
+            <div key={`act-${item.id}`} className="card" style={{ margin: '0 16px 12px', padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div
+                onClick={() => onUserTap && onUserTap(profile?.id)}
+                style={{ width: 32, height: 32, borderRadius: 16, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }}
+              >
+                {profile?.display_name?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                  <strong>{profile?.display_name}</strong>
+                  <span style={{ color: 'var(--text-muted)' }}> {shelfLabel(item.shelf)} </span>
+                </div>
+                <div
+                  onClick={() => onBookTap && onBookTap(book)}
+                  style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--accent)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {book?.title} →
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{timeAgo(item.created_at)}</div>
+              </div>
+              <div
+                onClick={() => onBookTap && onBookTap(book)}
+                style={{ flexShrink: 0, cursor: 'pointer' }}
+              >
+                {coverUrl ? (
+                  <img src={coverUrl} alt="" style={{ width: 36, height: 52, borderRadius: 4, objectFit: 'cover', background: 'var(--border)' }} />
+                ) : (
+                  <div style={{ width: 36, height: 52, borderRadius: 4, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{shelfEmoji(item.shelf)}</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
