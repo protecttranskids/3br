@@ -535,17 +535,25 @@ function BookDetail({ book, onClose }) {
           </button>
         )}
         {shelf && pendingShelf === shelf && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 20, padding: 12 }}>
-            <span style={{ color: 'var(--green)', fontSize: 14 }}>✓</span>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
-              {saved ? 'Saved!' : `In your library as ${shelf === 'tbr' ? 'TBR' : shelf === 'reading' ? 'Reading' : 'Read'}`}
-            </span>
-            <button
-              onClick={handleSave}
-              style={{ background: 'none', border: 'none', color: 'var(--text-light)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'underline' }}
-            >
-              Remove
-            </button>
+          <div style={{ marginBottom: 20, animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>✓</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--green)', marginBottom: 4 }}>Added to your library!</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                {book.title} is now on your {shelf === 'tbr' ? 'TBR' : shelf === 'reading' ? 'Reading' : 'Read'} shelf.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: 10, border: 'none', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                  Back to Feed
+                </button>
+                <button
+                  onClick={handleSave}
+                  style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
