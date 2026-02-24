@@ -32,7 +32,18 @@ export async function findOrCreateBook(olBook) {
     .select()
     .single();
   
-  if (error) throw error;
+  // If insert failed due to duplicate, try to fetch it
+  if (error) {
+    if (olBook.ol_key) {
+      const { data: retry } = await supabase
+        .from('books')
+        .select('*')
+        .eq('ol_key', olBook.ol_key)
+        .single();
+      if (retry) return retry;
+    }
+    throw error;
+  }
   return data;
 }
 
@@ -57,17 +68,39 @@ export async function getUserShelves(userId) {
 }
 
 export async function addToShelf(userId, bookId, shelf) {
-  const { data, error } = await supabase
+  // Check if already on shelf
+  const { data: existing } = await supabase
     .from('shelves')
-    .upsert({
-      user_id: userId,
-      book_id: bookId,
-      shelf,
-      date_added: new Date().toISOString(),
-      date_finished: shelf === 'read' ? new Date().toISOString() : null,
-    }, { onConflict: 'user_id,book_id' })
-    .select()
+    .select('id')
+    .eq('user_id', userId)
+    .eq('book_id', bookId)
     .single();
+
+  let data, error;
+  if (existing) {
+    ({ data, error } = await supabase
+      .from('shelves')
+      .update({
+        shelf,
+        date_finished: shelf === 'read' ? new Date().toISOString() : null,
+      })
+      .eq('user_id', userId)
+      .eq('book_id', bookId)
+      .select()
+      .single());
+  } else {
+    ({ data, error } = await supabase
+      .from('shelves')
+      .insert({
+        user_id: userId,
+        book_id: bookId,
+        shelf,
+        date_added: new Date().toISOString(),
+        date_finished: shelf === 'read' ? new Date().toISOString() : null,
+      })
+      .select()
+      .single());
+  }
   if (error) throw error;
 
   // Log activity
