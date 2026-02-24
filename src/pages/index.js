@@ -7,6 +7,7 @@ import BookSearch from '@/components/BookSearch';
 import RecSetCard from '@/components/RecSetCard';
 import CreateRecFlow from '@/components/CreateRecFlow';
 import Onboarding from '@/components/Onboarding';
+import ChangelogCard from '@/components/ChangelogCard';
 
 // Tab icons as simple SVGs
 function IconHome({ active }) {
@@ -98,6 +99,8 @@ function FeedTab({ onBookTap, onUserTap }) {
           </div>
           <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--gold)', background: 'rgba(251,191,36,0.15)', padding: '3px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>SOON</span>
         </div>
+
+        <ChangelogCard />
 
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
