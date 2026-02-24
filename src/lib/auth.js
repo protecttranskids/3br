@@ -56,6 +56,11 @@ export function AuthProvider({ children }) {
           handle: handle,
         }, { onConflict: 'id' });
       if (profileError) console.error('Profile creation error:', profileError);
+
+      // Log signup activity for beta feed
+      await supabase
+        .from('activities')
+        .insert({ user_id: data.user.id, type: 'joined' });
     }
     
     return { data, error };

@@ -123,6 +123,25 @@ function FeedTab({ onBookTap, onUserTap }) {
           // Activity card
           const profile = item.profiles;
           const book = item.books;
+
+          // Joined activity
+          if (item.type === 'joined') {
+            return (
+              <div key={`act-${item.id}`} className="card" style={{ margin: '0 16px 12px', padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 16, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>👋</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                    <strong>{profile?.display_name}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}> joined 3BR</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{timeAgo(item.created_at)}</div>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--green)', background: 'rgba(52,211,153,0.15)', padding: '3px 8px', borderRadius: 6 }}>NEW</span>
+              </div>
+            );
+          }
+
+          // Shelved activity
           const coverUrl = book?.isbn
             ? `https://covers.openlibrary.org/b/isbn/${book.isbn}-S.jpg`
             : null;
