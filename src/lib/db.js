@@ -177,20 +177,6 @@ export async function getExploreFeed(limit = 20) {
   return data || [];
 }
 
-export async function getActivities(limit = 30) {
-  const { data } = await supabase
-    .from('activities')
-    .select(`
-      *,
-      profiles:user_id(*),
-      books:book_id(*)
-    `)
-    .eq('type', 'shelved')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  return data || [];
-}
-
 export async function getUserRecSets(userId) {
   const { data } = await supabase
     .from('rec_sets')
