@@ -127,6 +127,9 @@ function FeedTab({ onBookTap, onUserTap }) {
           const profile = item.profiles;
           const book = item.books;
 
+          // Skip activities with missing or broken profile data
+          if (!profile || typeof profile !== 'object' || !profile.display_name) return null;
+
           // Joined activity
           if (item.type === 'joined') {
             return (
@@ -134,7 +137,7 @@ function FeedTab({ onBookTap, onUserTap }) {
                 <div style={{ width: 32, height: 32, borderRadius: 16, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>👋</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                    <strong>{profile?.display_name}</strong>
+                    <strong>{profile.display_name}</strong>
                     <span style={{ color: 'var(--text-muted)' }}> joined 3BR</span>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{timeAgo(item.created_at)}</div>
@@ -143,6 +146,9 @@ function FeedTab({ onBookTap, onUserTap }) {
               </div>
             );
           }
+
+          // Skip shelved activities with missing book
+          if (!book || typeof book !== 'object' || !book.title) return null;
 
           // Shelved activity
           const coverUrl = book?.isbn
