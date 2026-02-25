@@ -74,7 +74,7 @@ export async function addToShelf(userId, bookId, shelf) {
     .select('id')
     .eq('user_id', userId)
     .eq('book_id', bookId)
-    .single();
+    .maybeSingle();
 
   let data, error;
   if (existing) {
@@ -109,7 +109,7 @@ export async function addToShelf(userId, bookId, shelf) {
     type: 'shelved',
     book_id: bookId,
     shelf,
-  }).catch(() => {}); // Don't fail if activity logging fails
+  }).catch(() => {});
 
   return data;
 }

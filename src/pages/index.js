@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { getFeed, getExploreFeed, getActivities, createActivity, getUserShelves, getUserRecSets, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
+import { getFeed, getExploreFeed, getActivities, createActivity, getUserShelves, getUserRecSets, getProfile, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
 import { searchBooks, getCoverUrl } from '@/lib/openlibrary';
 import AuthScreen from '@/components/AuthScreen';
 import BookSearch from '@/components/BookSearch';
@@ -636,10 +636,16 @@ export default function Home() {
     if (book) setSelectedBook(book);
   };
 
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const handleUserTap = (userId) => {
+    if (userId && userId !== user.id) setSelectedUserId(userId);
+    else if (userId === user.id) setTab('profile');
+  };
+
   return (
     <>
       {/* Tab content */}
-      {tab === 'home' && <FeedTab key={feedKey} onBookTap={handleBookTap} />}
+      {tab === 'home' && <FeedTab key={feedKey} onBookTap={handleBookTap} onUserTap={handleUserTap} />}
       {tab === 'search' && <ExploreTab onBookTap={handleBookTap} />}
       {tab === 'library' && <LibraryTab onBookTap={handleBookTap} />}
       {tab === 'profile' && <ProfileTab />}
@@ -686,6 +692,145 @@ export default function Home() {
       {/* Overlays */}
       {selectedBook && <BookDetail book={selectedBook} onClose={() => setSelectedBook(null)} onGoToLibrary={() => { setSelectedBook(null); setTab('library'); }} />}
       {showCreateRec && <CreateRecFlow onClose={() => setShowCreateRec(false)} onComplete={() => setFeedKey(k => k + 1)} />}
+      {selectedUserId && <UserProfile userId={selectedUserId} onClose={() => setSelectedUserId(null)} onBookTap={handleBookTap} />}
     </>
+  );
+}
+
+function UserProfile({ userId, onClose, onBookTap }) {
+  const [profile, setProfile] = useState(null);
+  const [recSets, setRecSets] = useState([]);
+  const [shelves, setShelves] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const [p, rs, sh] = await Promise.all([
+        getProfile(userId),
+        getUserRecSets(userId),
+        getUserShelves(userId),
+      ]);
+      setProfile(p);
+      setRecSets(rs || []);
+      setShelves(sh || []);
+      setLoading(false);
+    }
+    load();
+  }, [userId]);
+
+  const readCount = shelves.filter(s => s.shelf === 'read').length;
+  const recsUnlocked = recSets.length * 3;
+
+  if (loading) {
+    return (
+      <div className="overlay" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="header">
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>←</button>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Profile</div>
+          <div style={{ width: 22 }} />
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner" /></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overlay" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="header">
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>←</button>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>Profile</div>
+        <div style={{ width: 22 }} />
+      </div>
+      <div className="scroll-area" style={{ padding: 20, flex: 1 }}>
+        {/* Avatar & name */}
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 36, background: 'var(--accent)', color: '#fff', fontSize: 28, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+            {profile?.display_name?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{profile?.display_name}</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>@{profile?.handle}</div>
+        </div>
+
+        {/* Stats */}
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', textAlign: 'center' }}>
+            {[
+              { label: 'Books Read', value: readCount },
+              { label: 'Rec Sets', value: recSets.length },
+              { label: 'Recs Unlocked', value: recsUnlocked },
+            ].map(s => (
+              <div key={s.label} style={{ flex: 1 }}>
+                <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--accent)' }}>{s.value}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Their rec sets */}
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 }}>Rec Sets</div>
+        {recSets.length === 0 ? (
+          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No rec sets yet.</p>
+          </div>
+        ) : (
+          recSets.map(rs => {
+            const coverUrl = rs.source_book?.isbn
+              ? `https://covers.openlibrary.org/b/isbn/${rs.source_book.isbn}-S.jpg`
+              : null;
+            return (
+              <div key={rs.id} className="card" style={{ padding: 14, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  onClick={() => onBookTap && onBookTap(rs.source_book)}
+                  style={{ flexShrink: 0, cursor: 'pointer' }}
+                >
+                  {coverUrl ? (
+                    <img src={coverUrl} alt="" style={{ width: 44, height: 64, borderRadius: 6, objectFit: 'cover', background: 'var(--border)' }} />
+                  ) : (
+                    <div style={{ width: 44, height: 64, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📖</div>
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-display)' }}>{rs.source_book?.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    → {rs.recs?.map(r => r.books?.title).filter(Boolean).join(', ')}
+                  </div>
+                  {rs.review && <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{rs.review}"</div>}
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {/* Their library */}
+        {shelves.length > 0 && (
+          <>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12, marginTop: 20 }}>Library ({shelves.length})</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {shelves.slice(0, 12).map(s => {
+                const coverUrl = s.books?.isbn
+                  ? `https://covers.openlibrary.org/b/isbn/${s.books.isbn}-S.jpg`
+                  : null;
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => onBookTap && onBookTap(s.books)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {coverUrl ? (
+                      <img src={coverUrl} alt="" style={{ width: 56, height: 82, borderRadius: 6, objectFit: 'cover', background: 'var(--border)' }} />
+                    ) : (
+                      <div style={{ width: 56, height: 82, borderRadius: 6, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>📖</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {shelves.length > 12 && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>+ {shelves.length - 12} more books</div>}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
