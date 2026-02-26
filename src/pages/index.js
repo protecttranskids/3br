@@ -22,7 +22,7 @@ function IconUser({ active }) {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'var(--accent)' : 'none'} stroke={active ? 'var(--accent)' : 'var(--text-light)'} strokeWidth="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 }
 
-function FeedTab({ onBookTap, onUserTap }) {
+function FeedTab({ onBookTap }) {
   const { user } = useAuth();
   const [feed, setFeed] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -109,7 +109,7 @@ function FeedTab({ onBookTap, onUserTap }) {
 
         {merged.map(item => {
           if (item._type === 'rec_set') {
-            return <RecSetCard key={String('rs-' + item.id)} recSet={item} onBookTap={onBookTap} onUserTap={onUserTap} />;
+            return <RecSetCard key={String('rs-' + item.id)} recSet={item} onBookTap={onBookTap} />;
           }
 
           const profile = item.profiles;
@@ -591,7 +591,6 @@ export default function Home() {
   const [feedKey, setFeedKey] = useState(0);
   const [onboarded, setOnboarded] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
-  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Check if user has any shelved books (if so, skip onboarding)
   useEffect(() => {
@@ -618,15 +617,10 @@ export default function Home() {
     if (book) setSelectedBook(book);
   };
 
-  const handleUserTap = (userId) => {
-    if (userId && userId !== user.id) setSelectedUserId(userId);
-    else if (userId === user.id) setTab('profile');
-  };
-
   return (
     <>
       {/* Tab content */}
-      {tab === 'home' && <FeedTab key={feedKey} onBookTap={handleBookTap} onUserTap={handleUserTap} />}
+      {tab === 'home' && <FeedTab key={feedKey} onBookTap={handleBookTap} />}
       {tab === 'search' && <ExploreTab onBookTap={handleBookTap} />}
       {tab === 'library' && <LibraryTab onBookTap={handleBookTap} />}
       {tab === 'profile' && <ProfileTab />}
