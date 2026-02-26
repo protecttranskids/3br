@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import { getFeed, getExploreFeed, getUserShelves, getUserRecSets, getProfile, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
+import { getFeed, getExploreFeed, getActivities, getUserShelves, getUserRecSets, getProfile, addToShelf, removeFromShelf, findOrCreateBook } from '@/lib/db';
 import { searchBooks, getCoverUrl } from '@/lib/openlibrary';
 import AuthScreen from '@/components/AuthScreen';
 import BookSearch from '@/components/BookSearch';
@@ -25,16 +25,43 @@ function IconUser({ active }) {
 function FeedTab({ onBookTap }) {
   const { user } = useAuth();
   const [feed, setFeed] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadFeed = async () => {
     setLoading(true);
-    const recSets = await getExploreFeed(50);
+    const [recSets, acts] = await Promise.all([
+      getExploreFeed(50),
+      getActivities(30),
+    ]);
     setFeed(recSets || []);
+    setActivities(acts || []);
     setLoading(false);
   };
 
   useEffect(() => { loadFeed(); }, [user]);
+
+  const merged = [
+    ...feed.map(r => ({ ...r, _type: 'rec_set', _time: new Date(r.created_at).getTime() })),
+    ...activities.map(a => ({ ...a, _type: 'activity', _time: new Date(a.created_at).getTime() })),
+  ].sort((a, b) => b._time - a._time);
+
+  const timeAgo = (date) => {
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
+
+  const shelfLabel = (shelf) => {
+    if (shelf === 'read') return 'finished reading';
+    if (shelf === 'reading') return 'started reading';
+    if (shelf === 'tbr') return 'wants to read';
+    return 'shelved';
+  };
 
   return (
     <div>
@@ -70,7 +97,7 @@ function FeedTab({ onBookTap }) {
           </div>
         )}
 
-        {!loading && feed.length === 0 && (
+        {!loading && merged.length === 0 && (
           <div style={{ textAlign: 'center', padding: '24px 32px' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⭐</div>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 8 }}>No activity yet</h3>
@@ -80,9 +107,64 @@ function FeedTab({ onBookTap }) {
           </div>
         )}
 
-        {feed.map(recSet => (
-          <RecSetCard key={recSet.id} recSet={recSet} onBookTap={onBookTap} />
-        ))}
+        {merged.map(item => {
+          if (item._type === 'rec_set') {
+            return <RecSetCard key={String('rs-' + item.id)} recSet={item} onBookTap={onBookTap} />;
+          }
+
+          const profile = item.profiles;
+          const book = item.books;
+
+          if (!profile || typeof profile !== 'object' || !profile.display_name) return null;
+
+          if (item.type === 'joined') {
+            return (
+              <div key={String('act-' + item.id)} className="card" style={{ margin: '0 16px 12px', padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 16, background: 'rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{'👋'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                    <strong>{String(profile.display_name)}</strong>
+                    <span style={{ color: 'var(--text-muted)' }}>{' joined 3BR'}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{timeAgo(item.created_at)}</div>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--green)', background: 'rgba(52,211,153,0.15)', padding: '3px 8px', borderRadius: 6 }}>NEW</span>
+              </div>
+            );
+          }
+
+          if (!book || typeof book !== 'object' || !book.title) return null;
+
+          const coverUrl = book.isbn
+            ? 'https://covers.openlibrary.org/b/isbn/' + book.isbn + '-S.jpg'
+            : null;
+
+          return (
+            <div key={String('act-' + item.id)} className="card" style={{ margin: '0 16px 12px', padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 16, background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--accent)', flexShrink: 0 }}>
+                {String(profile.display_name)[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, lineHeight: 1.4 }}>
+                  <strong>{String(profile.display_name)}</strong>
+                  <span style={{ color: 'var(--text-muted)' }}>{' ' + shelfLabel(item.shelf) + ' '}</span>
+                </div>
+                <div
+                  onClick={() => onBookTap && onBookTap(book)}
+                  style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-display)', color: 'var(--accent)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {String(book.title)}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{timeAgo(item.created_at)}</div>
+              </div>
+              {coverUrl ? (
+                <img onClick={() => onBookTap && onBookTap(book)} src={coverUrl} alt="" style={{ width: 36, height: 52, borderRadius: 4, objectFit: 'cover', background: 'var(--border)', cursor: 'pointer', flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 36, height: 52, borderRadius: 4, background: 'var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{'📖'}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
