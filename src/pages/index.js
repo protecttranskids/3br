@@ -591,6 +591,7 @@ export default function Home() {
   const [feedKey, setFeedKey] = useState(0);
   const [onboarded, setOnboarded] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Check if user has any shelved books (if so, skip onboarding)
   useEffect(() => {
@@ -617,7 +618,6 @@ export default function Home() {
     if (book) setSelectedBook(book);
   };
 
-  const [selectedUserId, setSelectedUserId] = useState(null);
   const handleUserTap = (userId) => {
     if (userId && userId !== user.id) setSelectedUserId(userId);
     else if (userId === user.id) setTab('profile');
