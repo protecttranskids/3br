@@ -91,16 +91,6 @@ function FeedTab({ onBookTap, onUserTap }) {
           <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--gold)', background: 'rgba(251,191,36,0.15)', padding: '3px 6px', borderRadius: 6, whiteSpace: 'nowrap' }}>SOON</span>
         </div>
 
-        <div style={{ margin: '0 16px 16px', padding: 16, borderRadius: 16, background: 'var(--card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{"What's New"}</span>
-            <span style={{ fontSize: 10, color: 'var(--text-light)', marginLeft: 'auto' }}>{'Feb 25, 2025'}</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            {'Feed now shows shelf activity. Tap usernames to see profiles. Bug fixes for adding books.'}
-          </div>
-        </div>
-
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
             <div className="spinner" />
